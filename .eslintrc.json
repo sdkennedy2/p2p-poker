@@ -1,0 +1,5 @@
+{
+  "extends": [
+    "./node_modules/sdk-build/.eslintrc.json"
+  ]
+}

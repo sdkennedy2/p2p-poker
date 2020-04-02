@@ -1,0 +1,38 @@
+{
+  "name": "p2p-poker",
+  "version": "1.0.0",
+  "main": "index.js",
+  "author": "Scott Kennedy <scott@scottkennedy.ca>",
+  "license": "MIT",
+  "private": true,
+  "dependencies": {
+    "@types/react": "^16.9.26",
+    "@types/react-dom": "^16.9.5",
+    "comlink": "^4.2.0",
+    "core-js": "^3.6.4",
+    "farce": "^0.4.1",
+    "found": "^0.4.10",
+    "immer": "^6.0.2",
+    "peerjs": "^1.2.0",
+    "react": "^16.13.1",
+    "react-dom": "^16.13.1",
+    "react-redux": "^7.2.0",
+    "redux": "^4.0.5",
+    "uuid": "^7.0.2"
+  },
+  "devDependencies": {
+    "@babel/cli": "^7.8.4",
+    "@babel/core": "^7.9.0",
+    "eslint": "^6.8.0",
+    "nodemon": "^2.0.2",
+    "prettier": "^2.0.2",
+    "sdk-build": "git+ssh://git@github.com:sdkennedy2/sdk-build.git",
+    "typescript": "^3.8.3"
+  },
+  "scripts": {
+    "eslint": "eslint --no-error-on-unmatched-pattern 'src/**/*.ts' 'src/**/*.tsx'",
+    "eslint-fix": "eslint --fix --no-error-on-unmatched-pattern 'src/**/*.ts' 'src/**/*.tsx",
+    "dev-browser": "scripts/dev-browser.sh",
+    "dev-node": "scripts/dev-node.sh dist/node/node/index.js"
+  }
+}

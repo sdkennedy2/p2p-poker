@@ -1,0 +1,19 @@
+{
+  "env": {
+    "browserLegacy": {
+      "presets": [
+        "sdk-build/lib/babel.browser-legacy.js"
+      ]
+    },
+    "browserModern": {
+      "presets": [
+        "sdk-build/lib/babel.browser-modern.js"
+      ]
+    },
+    "node": {
+      "presets": [
+        "sdk-build/lib/babel.node.js"
+      ]
+    }
+  }
+}
