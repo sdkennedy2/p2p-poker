@@ -31,7 +31,13 @@ async function createWorker(): Promise<WorkerThreadClient> {
 }
 
 async function init(): Promise<void> {
-  const {clientStore: store} = await createWorker();
+  const workerClient = await createWorker();
+  workerClient.actionCreators.game.joinGame({
+    id: 'id-1',
+    name: 'Scott',
+    balance: 123,
+  });
+  const {clientStore: store} = workerClient;
   const root = document.createElement('div');
   document.body.appendChild(root);
   ReactDOM.render(<App store={store} />, root);

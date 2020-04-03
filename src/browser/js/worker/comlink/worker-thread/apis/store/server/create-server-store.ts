@@ -12,7 +12,7 @@ import {
 } from 'redux';
 import {routeConfig} from '../../../../../../ui/routing';
 import {reducers} from '../../../../../../store/reducers';
-import BrowserWorkerProtocol from './farce-browser-worker-protocol';
+import BrowserWorkerProtocol from './farce-protocol';
 import {proxy, Remote} from 'comlink';
 import {createPatchSubscribeEnhancer} from './patch-subscribe-enhancer';
 import {MainThreadApi} from '../../../../main-thread/interface';
@@ -49,10 +49,12 @@ export async function createServerStore(
     mainThread.history.getLocation(),
     mainThread.history.getState(),
   ]);
-  baseStore.dispatch({
+  const updateLocationAction = {
     type: FarcActionTypes.UPDATE_LOCATION,
     payload: browserWorkerProtocol.init({location, historyState}),
-  });
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  } as any;
+  baseStore.dispatch(updateLocationAction);
 
   return baseStore;
 }

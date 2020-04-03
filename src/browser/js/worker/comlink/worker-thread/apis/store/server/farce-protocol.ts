@@ -3,9 +3,9 @@ import createPath from 'farce/createPath';
 import {
   HistoryProxy,
   PopStateEvent,
-} from '../worker/comlink/main-thread/apis/history-proxy';
+} from '../../../../main-thread/apis/history-proxy';
 import {Remote, proxy} from 'comlink';
-import {MainThreadApi} from '../worker/comlink/main-thread/interface';
+import {MainThreadApi} from '../../../../main-thread/interface';
 
 export default class BrowserWorkerProtocol {
   _keyPrefix: string;

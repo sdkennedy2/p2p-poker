@@ -1,5 +1,9 @@
 import {FoundState} from 'found';
-import {GameAction, GameState} from './ducks/game/interface';
+import {
+  GameAction,
+  GameState,
+  GameActionCreators,
+} from './ducks/game/interface';
 
 export interface State {
   found: FoundState;
@@ -7,3 +11,7 @@ export interface State {
 }
 
 export type Action = GameAction;
+
+export interface ActionCreators {
+  game: GameActionCreators;
+}

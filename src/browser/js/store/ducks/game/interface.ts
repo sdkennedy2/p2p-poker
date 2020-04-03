@@ -1,3 +1,6 @@
+import {ACTION_TYPE_JOIN_GAME} from './constants';
+import {ActionCreator, ActionContainer} from '../../util/action-creators';
+
 // State
 export enum StateMachineState {
   Lobby,
@@ -39,9 +42,14 @@ export interface GameState {
 }
 
 // Actions
-export interface GameJoinAction {
-  type: 'gameJoin';
-  payload: PlayerState;
-}
-
+export type GameJoinAction = ActionContainer<
+  typeof ACTION_TYPE_JOIN_GAME,
+  PlayerState
+>;
 export type GameAction = GameJoinAction;
+
+// Action creator
+export type JoinGameActionCreator = ActionCreator<PlayerState>;
+export interface GameActionCreators {
+  joinGame: JoinGameActionCreator;
+}

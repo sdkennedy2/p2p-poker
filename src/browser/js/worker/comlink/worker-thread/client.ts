@@ -1,6 +1,6 @@
 import {WorkerThreadApi, WorkerThreadClient} from './interface';
 import {wrap} from 'comlink';
-import {createClientStore} from './apis/store/client/create-client-store';
+import serverStoreToClientStore from './apis/store/client/server-store-to-client-store';
 
 export async function createWorkerThreadClient(
   clientPort: MessagePort,
@@ -8,7 +8,8 @@ export async function createWorkerThreadClient(
   const workerThread = wrap<WorkerThreadApi>(clientPort);
   clientPort.start();
 
-  const clientStore = await createClientStore(workerThread.serverStore);
+  const {actionCreators} = workerThread;
+  const clientStore = await serverStoreToClientStore(workerThread.serverStore);
 
-  return {clientStore};
+  return {actionCreators, clientStore};
 }

@@ -1,9 +1,9 @@
 import {proxy} from 'comlink';
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export interface HistoryState {
   key: string;
   index: number;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   state: any;
 }
 

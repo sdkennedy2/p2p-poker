@@ -8,13 +8,33 @@ import {ClientStore} from './interface';
 export default async function serverStoreToClientStore(
   serverStore: Remote<ServerStore>,
 ): Promise<ClientStore> {
-  const subscribers = new Set();
+  let devTools;
+  if (
+    typeof window !== 'undefined' &&
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (window as any).__REDUX_DEVTOOLS_EXTENSION__
+  ) {
+    devTools = (window as any).__REDUX_DEVTOOLS_EXTENSION__.connect({
+      autoPause: true,
+      features: {pause: true, export: true, test: true},
+      latency: 500,
+      type: 'redux',
+    });
+  }
 
+  const subscribers = new Set();
   let latestState = await serverStore.getState();
+  if (devTools) {
+    devTools.init(latestState);
+  }
+
   serverStore.subscribe(
-    proxy(async (patches: Patch[]) => {
+    proxy(async ({action, patches}: {action?: Action; patches: Patch[]}) => {
       const nextState = applyPatches(latestState, patches) as State;
       latestState = nextState;
+      if (devTools) {
+        devTools.send(action, latestState);
+      }
       subscribers.forEach((f: () => void) => f());
     }),
   );

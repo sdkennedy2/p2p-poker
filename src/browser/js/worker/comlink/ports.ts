@@ -2,6 +2,12 @@ import {Endpoint} from 'comlink';
 
 const MESSAGE_TYPE_COMLINK_PORTS = 'COMLINK_PORTS';
 
+function logPort(name: string, port: MessagePort): void {
+  port.addEventListener('message', (message) => {
+    console.log(`Port: ${name}`, message.data);
+  });
+}
+
 /*
 Creates ports for main thread to communicate with worker via comlink and vice versa
 */
@@ -23,12 +29,16 @@ export function createPorts(): {
   // Worker broadcasts requests and lists for response from main on this port
   const workerClientPort = inboundChannel.port2;
 
-  return {
+  const ports = {
     mainServerPort,
     mainClientPort,
     workerServerPort,
     workerClientPort,
   };
+  // Object.entries(ports).forEach(([name, port]) => {
+  //   logPort(name, port);
+  // });
+  return ports;
 }
 
 export async function publishPorts(

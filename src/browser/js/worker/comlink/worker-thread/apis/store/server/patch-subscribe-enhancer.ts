@@ -3,13 +3,16 @@ import {
   AnyAction,
   StoreCreator,
   Reducer,
-  Dispatch,
   Unsubscribe,
 } from 'redux';
 import {produceWithPatches, Patch} from 'immer';
 
-type StateWithPatches<S> = {state: S; patches: Patch[]};
-const initialStateWithPatches = {state: undefined, patches: []};
+type StateWithPatches<A, S> = {action?: A; state: S; patches: Patch[]};
+const initialStateWithPatches = {
+  action: undefined,
+  state: undefined,
+  patches: [],
+};
 
 export function createPatchSubscribeEnhancer(): StoreEnhancer<any> {
   return (createStore: StoreCreator) => <S, A extends AnyAction>(
@@ -17,23 +20,29 @@ export function createPatchSubscribeEnhancer(): StoreEnhancer<any> {
     ...args: any[]
   ) => {
     const reducerWithPatches = (
-      previousStateWithPatches: StateWithPatches<S> = initialStateWithPatches,
+      previousStateWithPatches: StateWithPatches<
+        A,
+        S
+      > = initialStateWithPatches,
       action: A,
-    ): StateWithPatches<S> => {
+    ): StateWithPatches<A, S> => {
       const {state: previousState} = previousStateWithPatches;
       const [nextState, patches] = produceWithPatches(
         previousState,
         (draft: S) => baseReducer(draft, action),
       );
-      return {state: nextState as any, patches};
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      return {action, state: nextState as any, patches};
     };
     const store = createStore(reducerWithPatches, ...args);
 
     const getState = (): S => store.getState().state;
-    const subscribe = (listener: (patches: Patch[]) => void): Unsubscribe => {
+    const subscribe = (
+      listener: (payload: {action: A; patches: Patch[]}) => void,
+    ): Unsubscribe => {
       const boundListener = (): void => {
-        const {patches} = store.getState();
-        listener(patches);
+        const {action, patches} = store.getState();
+        listener({action, patches});
       };
       return store.subscribe(boundListener);
     };
