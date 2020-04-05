@@ -1,9 +1,12 @@
 import {createActionCreator} from '../../util/action-creators';
 import {ACTION_TYPE_JOIN_GAME} from './constants';
-import {GameActionCreators} from './interface';
+import {GameActionCreators, JoinGameActionCreator} from './interface';
 
 export function createGameActionCreators(dispatch): GameActionCreators {
-  const joinGame = createActionCreator(dispatch, ACTION_TYPE_JOIN_GAME);
+  const joinGame: JoinGameActionCreator = createActionCreator(
+    dispatch,
+    ACTION_TYPE_JOIN_GAME,
+  );
   return {
     joinGame,
   };

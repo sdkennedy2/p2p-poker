@@ -1,7 +1,7 @@
-import foundReducer from 'found/lib/foundReducer';
+import {farceReducer} from './ducks/farce/reducer';
 import {gameReducer} from './ducks/game/reducer';
 
 export const reducers = {
-  found: foundReducer,
+  farce: farceReducer,
   game: gameReducer,
 };

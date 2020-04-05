@@ -1,13 +1,17 @@
-import {Dispatch, AnyAction} from 'redux';
+import {Dispatch as BaseDispatch} from 'redux';
 
 export type ActionContainer<ActionType extends string, Payload> = {
   type: ActionType;
   payload: Payload;
 };
-export type ActionCreator<Payload> = (payload: Payload) => void;
+export type ActionCreator<Payload, Action> = (payload: Payload) => Action;
 
-export const createActionCreator = <ActionType extends string, Payload>(
-  dispatch: Dispatch<AnyAction>,
+export const createActionCreator = <
+  ActionType extends string,
+  Payload,
+  Dispatch extends BaseDispatch<ActionContainer<ActionType, Payload>>
+>(
+  dispatch: Dispatch,
   type: ActionType,
 ) => {
   return (payload: Payload): ActionContainer<ActionType, Payload> => {

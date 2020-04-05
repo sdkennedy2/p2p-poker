@@ -7,12 +7,12 @@ import {
   GameJoinAction,
 } from './interface';
 import {ACTION_TYPE_JOIN_GAME} from './constants';
-import {AnyAction} from 'redux';
+import {createReducer} from '../../util/reducer';
 
 const initialState: GameState = {
   stateMachine: StateMachineState.Lobby,
   players: {},
-  selfId: uuid(),
+  self: undefined,
 };
 
 function joinGameReducer(
@@ -21,20 +21,6 @@ function joinGameReducer(
 ): GameState {
   state.players[payload.id] = payload;
   return state;
-}
-
-const reducerMap = {
-  [ACTION_TYPE_JOIN_GAME]: joinGameReducer,
-};
-
-function createReducer<State, Action extends AnyAction>(
-  reducerMap,
-  initialState,
-) {
-  return function reducer(state: State = initialState, action: Action) {
-    const reducer = reducerMap[action.type];
-    return reducer ? reducer(state, action) : state;
-  };
 }
 
 export const gameReducer = createReducer<GameState, GameAction>(

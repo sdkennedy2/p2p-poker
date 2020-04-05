@@ -1,4 +1,3 @@
-import FarcActionTypes from 'farce/ActionTypes';
 import createHistoryEnhancer from 'farce/createHistoryEnhancer';
 import queryMiddleware from 'farce/queryMiddleware';
 import Matcher from 'found/lib/Matcher';
@@ -12,21 +11,26 @@ import {
 } from 'redux';
 import {routeConfig} from '../../../../../../ui/routing';
 import {reducers} from '../../../../../../store/reducers';
-import BrowserWorkerProtocol from './farce-protocol';
+import BrowserWorkerProtocol from '../../../../../../store/ducks/farce/farce-protocol';
 import {proxy, Remote} from 'comlink';
-import {createPatchSubscribeEnhancer} from './patch-subscribe-enhancer';
+import {createComlinkEnhancer} from './comlink-enhancer';
 import {MainThreadApi} from '../../../../main-thread/interface';
 import {ServerStore, ServerStoreSubscribeListener} from './interface';
+import {createActionCreators} from '../../../../../../store/action-creators';
+import {ActionCreators} from '../../../../../../store/interface';
 
 export async function createServerStore(
   mainThread: Remote<MainThreadApi>,
-): Promise<ServerStore> {
+): Promise<{
+  actionCreators: ActionCreators;
+  serverStore: ServerStore;
+}> {
   const browserWorkerProtocol = new BrowserWorkerProtocol(mainThread);
 
-  const baseStore: ServerStore = baseCreateStore(
+  const serverStore: ServerStore = baseCreateStore(
     combineReducers(reducers),
     compose(
-      createPatchSubscribeEnhancer(),
+      createComlinkEnhancer(),
       createHistoryEnhancer({
         protocol: browserWorkerProtocol,
         middlewares: [queryMiddleware],
@@ -35,26 +39,14 @@ export async function createServerStore(
     ),
   );
 
-  const baseSubscribe = baseStore.subscribe.bind(baseStore);
-  baseStore.subscribe = (
-    listener: ServerStoreSubscribeListener,
-  ): Unsubscribe => {
-    const baseUnsubscribe = baseSubscribe(listener);
-    return proxy(() => {
-      baseUnsubscribe();
-    });
-  };
+  const actionCreators: ActionCreators = createActionCreators(
+    serverStore.dispatch,
+  );
 
-  const [location, historyState] = await Promise.all([
-    mainThread.history.getLocation(),
-    mainThread.history.getState(),
-  ]);
-  const updateLocationAction = {
-    type: FarcActionTypes.UPDATE_LOCATION,
-    payload: browserWorkerProtocol.init({location, historyState}),
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  } as any;
-  baseStore.dispatch(updateLocationAction);
+  await actionCreators.farce.initializeLocation(
+    browserWorkerProtocol,
+    mainThread,
+  );
 
-  return baseStore;
+  return {actionCreators, serverStore};
 }

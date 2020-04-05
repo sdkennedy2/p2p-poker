@@ -6,15 +6,17 @@ import {
   Unsubscribe,
 } from 'redux';
 import {produceWithPatches, Patch} from 'immer';
+import {proxy} from 'comlink';
 
 type StateWithPatches<A, S> = {action?: A; state: S; patches: Patch[]};
+
 const initialStateWithPatches = {
   action: undefined,
   state: undefined,
   patches: [],
 };
 
-export function createPatchSubscribeEnhancer(): StoreEnhancer<any> {
+export function createComlinkEnhancer(): StoreEnhancer<any> {
   return (createStore: StoreCreator) => <S, A extends AnyAction>(
     baseReducer: Reducer<S, A>,
     ...args: any[]
@@ -44,7 +46,8 @@ export function createPatchSubscribeEnhancer(): StoreEnhancer<any> {
         const {action, patches} = store.getState();
         listener({action, patches});
       };
-      return store.subscribe(boundListener);
+      const unsubscribe = store.subscribe(boundListener);
+      return proxy(unsubscribe);
     };
 
     return {

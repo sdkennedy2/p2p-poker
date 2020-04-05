@@ -3,9 +3,10 @@ import createPath from 'farce/createPath';
 import {
   HistoryProxy,
   PopStateEvent,
-} from '../../../../main-thread/apis/history-proxy';
+} from '../../../worker/comlink/main-thread/apis/history-proxy';
 import {Remote, proxy} from 'comlink';
-import {MainThreadApi} from '../../../../main-thread/interface';
+import {MainThreadApi} from '../../../worker/comlink/main-thread/interface';
+import {FarceLocation} from './interface';
 
 export default class BrowserWorkerProtocol {
   _keyPrefix: string;
@@ -21,7 +22,7 @@ export default class BrowserWorkerProtocol {
     this._history = mainThread.history;
   }
 
-  init(event: PopStateEvent) {
+  init(event: PopStateEvent): FarceLocation {
     const {historyState, location} = event;
     const {pathname, search, hash} = location;
 
@@ -41,7 +42,7 @@ export default class BrowserWorkerProtocol {
     };
   }
 
-  subscribe(listener): () => void {
+  subscribe(listener: (location: FarceLocation) => void): () => void {
     const popStateListener = proxy((event: PopStateEvent): void => {
       listener(this.init(event));
     });
@@ -51,7 +52,7 @@ export default class BrowserWorkerProtocol {
     };
   }
 
-  navigate(location) {
+  navigate(location): FarceLocation {
     const {action, state} = location;
 
     const push = action === 'PUSH';

@@ -1,8 +1,10 @@
 import {createGameActionCreators} from './ducks/game/action-creators';
-import {ActionCreators} from './interface';
+import {ActionCreators, Dispatch} from './interface';
+import {createFarceActionCreators} from './ducks/farce/action-creators';
 
-export function createActionCreators(dispatch): ActionCreators {
+export function createActionCreators(dispatch: Dispatch): ActionCreators {
   return {
+    farce: createFarceActionCreators(dispatch),
     game: createGameActionCreators(dispatch),
   };
 }

@@ -35,10 +35,16 @@ export interface PlayersState {
   [playerId: string]: PlayerState;
 }
 
+export interface SelfState {
+  id: string;
+  publicKey: string;
+  privateKey: string;
+}
+
 export interface GameState {
   stateMachine: StateMachineState;
   players: PlayersState;
-  selfId: string;
+  self?: SelfState;
 }
 
 // Actions
@@ -49,7 +55,7 @@ export type GameJoinAction = ActionContainer<
 export type GameAction = GameJoinAction;
 
 // Action creator
-export type JoinGameActionCreator = ActionCreator<PlayerState>;
+export type JoinGameActionCreator = ActionCreator<PlayerState, GameJoinAction>;
 export interface GameActionCreators {
   joinGame: JoinGameActionCreator;
 }
