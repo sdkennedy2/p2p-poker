@@ -8,10 +8,9 @@ export async function createWorkerThreadServer(
   serverPort: MessagePort,
 ): Promise<void> {
   // Api exposed to main thread from worker
-  const {actionCreators, serverStore} = await createServerStore(mainThread);
-
+  const {actions, serverStore} = await createServerStore(mainThread);
   // Listen for incomming requests
-  const workerThreadApi: WorkerThreadApi = {actionCreators, serverStore};
+  const workerThreadApi: WorkerThreadApi = {actions, serverStore};
   expose(workerThreadApi, serverPort);
   serverPort.start();
 }

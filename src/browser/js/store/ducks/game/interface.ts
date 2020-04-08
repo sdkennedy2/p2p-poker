@@ -1,5 +1,6 @@
-import {ACTION_TYPE_JOIN_GAME} from './constants';
+import {ACTION_TYPE_JOIN_GAME, ACTION_TYPE_INIT_GAME} from './constants';
 import {ActionCreator, ActionContainer} from '../../util/action-creators';
+import Peer, {DataConnection} from 'peerjs';
 
 // State
 export enum StateMachineState {
@@ -29,6 +30,7 @@ export interface PlayerState {
   id: string;
   name: string;
   balance: number;
+  publicKey: string;
 }
 
 export interface PlayersState {
@@ -41,21 +43,39 @@ export interface SelfState {
   privateKey: string;
 }
 
+export enum LoadingStatus {
+  Unloaded,
+  Loading,
+  Ready,
+  Error,
+}
+
 export interface GameState {
+  id: string;
+  status: LoadingStatus;
   stateMachine: StateMachineState;
   players: PlayersState;
-  self?: SelfState;
 }
 
 // Actions
+export type PeerId = string;
+export type GameInitAction = ActionContainer<
+  typeof ACTION_TYPE_INIT_GAME,
+  GameState
+>;
+
 export type GameJoinAction = ActionContainer<
   typeof ACTION_TYPE_JOIN_GAME,
   PlayerState
 >;
-export type GameAction = GameJoinAction;
+export type GameAction = GameInitAction | GameJoinAction;
 
 // Action creator
-export type JoinGameActionCreator = ActionCreator<PlayerState, GameJoinAction>;
+export type GameInitActionCreator = (options: {
+  peers: PeerId[];
+}) => Promise<void>;
+export type GameJoinActionCreator = ActionCreator<PlayerState, GameJoinAction>;
 export interface GameActionCreators {
-  joinGame: JoinGameActionCreator;
+  initGame: GameInitActionCreator;
+  joinGame: GameJoinActionCreator;
 }

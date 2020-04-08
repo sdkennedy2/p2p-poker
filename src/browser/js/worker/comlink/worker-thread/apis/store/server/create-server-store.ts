@@ -22,7 +22,7 @@ import {ActionCreators} from '../../../../../../store/interface';
 export async function createServerStore(
   mainThread: Remote<MainThreadApi>,
 ): Promise<{
-  actionCreators: ActionCreators;
+  actions: ActionCreators;
   serverStore: ServerStore;
 }> {
   const browserWorkerProtocol = new BrowserWorkerProtocol(mainThread);
@@ -39,14 +39,9 @@ export async function createServerStore(
     ),
   );
 
-  const actionCreators: ActionCreators = createActionCreators(
-    serverStore.dispatch,
-  );
+  const actions: ActionCreators = createActionCreators(serverStore.dispatch);
 
-  await actionCreators.farce.initializeLocation(
-    browserWorkerProtocol,
-    mainThread,
-  );
+  await actions.farce.initializeLocation(browserWorkerProtocol, mainThread);
 
-  return {actionCreators, serverStore};
+  return {actions, serverStore};
 }

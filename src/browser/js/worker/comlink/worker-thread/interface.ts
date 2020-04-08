@@ -4,11 +4,11 @@ import {ActionCreators} from '../../../store/interface';
 import {Remote} from 'comlink';
 
 export interface WorkerThreadApi {
-  actionCreators: ActionCreators;
+  actions: ActionCreators;
   serverStore: ServerStore;
 }
 
 export interface WorkerThreadClient {
-  actionCreators: Remote<ActionCreators>;
+  actions: Remote<ActionCreators>;
   clientStore: ClientStore;
 }

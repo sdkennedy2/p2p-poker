@@ -32,10 +32,8 @@ async function createWorker(): Promise<WorkerThreadClient> {
 
 async function init(): Promise<void> {
   const workerClient = await createWorker();
-  workerClient.actionCreators.game.joinGame({
-    id: 'id-1',
-    name: 'Scott',
-    balance: 123,
+  workerClient.actions.game.initGame({
+    peers: [],
   });
   const {clientStore: store} = workerClient;
   const root = document.createElement('div');

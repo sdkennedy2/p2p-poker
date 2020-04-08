@@ -8,8 +8,8 @@ export async function createWorkerThreadClient(
   const workerThread = wrap<WorkerThreadApi>(clientPort);
   clientPort.start();
 
-  const {actionCreators} = workerThread;
-  const clientStore = await serverStoreToClientStore(workerThread.serverStore);
+  const {actions, serverStore} = workerThread;
+  const clientStore = await serverStoreToClientStore(serverStore);
 
-  return {actionCreators, clientStore};
+  return {actions, clientStore};
 }
