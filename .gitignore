@@ -75,3 +75,11 @@ Icon
 Network Trash Folder
 Temporary Items
 .apdisk
+
+### Serverless ###
+# Ignore build directory
+.serverless
+
+### Webpack ###
+# Ignore build directory
+.webpack

@@ -29,7 +29,12 @@
     "nodemon": "^2.0.2",
     "prettier": "^2.0.2",
     "sdk-build": "git+ssh://git@github.com:sdkennedy2/sdk-build.git",
-    "typescript": "^3.8.3"
+    "serverless": "^1.67.3",
+    "serverless-offline": "^6.1.4",
+    "serverless-webpack": "^5.3.1",
+    "typescript": "^3.8.3",
+    "webpack": "^4.42.1",
+    "webpack-node-externals": "^1.7.2"
   },
   "scripts": {
     "eslint": "eslint --no-error-on-unmatched-pattern 'src/**/*.ts' 'src/**/*.tsx'",
