@@ -23,6 +23,8 @@ org: crazedclimber
 provider:
   name: aws
   runtime: nodejs12.x
+  websocketsApiName: custom-websockets-api-name
+  websocketsApiRouteSelectionExpression: $request.body.action
 
 plugins:
   - serverless-webpack
@@ -33,7 +35,6 @@ custom:
     webpackConfig: ./webpack.serverless.js
     includeModules: true
     packager: yarn
-
 
 # you can overwrite defaults here
 #  stage: dev
@@ -69,12 +70,22 @@ custom:
 #    - exclude-me-dir/**
 
 functions:
-  hello:
-    handler: src/node/handler.connect
+  connect:
+    handler: src/node/handler.connectHandler
     events:
-      - http:
-         path: connect
-         method: get
+      - websocket:
+          route: $connect
+  disconnect:
+    handler: src/node/handler.disconnectHandler
+    events:
+      - websocket:
+          route: $disconnect
+  default:
+    handler: src/node/handler.messageHandler
+    events:
+      - websocket:
+          route: $default
+          routeResponseSelectionExpression: $default
 
 
 # functions:

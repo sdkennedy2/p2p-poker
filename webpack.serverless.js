@@ -14,7 +14,7 @@ module.exports = {
     // Turn off size warnings for entry points
     hints: false,
   },
-  devtool: 'nosources-source-map',
+  devtool: 'eval-source-map',
   externals: [nodeExternals()],
   module: {
     rules: [
@@ -27,7 +27,7 @@ module.exports = {
             options: {
               cacheDirectory: true,
               sourceType: 'unambiguous',
-              ...require('sdk-build/lib/babel.node.js'),
+              presets: [require('sdk-build/lib/babel.node.js')],
             },
           },
         ],
