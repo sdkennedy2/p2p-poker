@@ -4,6 +4,7 @@ import ReactDOM from 'react-dom';
 import App from './ui/app';
 import {enableMapSet, enablePatches} from 'immer';
 import {createWorker} from './create-worker';
+import {createRoom} from './util/webrtc/room';
 
 enableMapSet();
 enablePatches();
@@ -22,207 +23,236 @@ async function createWebSocket(): Promise<WebSocket> {
   });
 }
 
+interface JoinResponse {
+  peerIds: Array<string>;
+  requestId: string;
+  selfId: string;
+}
+
+// WebRtc signaling
+interface CandidatePayload {
+  destinationId: string;
+  candidate: RTCIceCandidate;
+}
+interface DescriptionPayload {
+  destinationId: string;
+  description: RTCSessionDescription;
+}
+interface DescriptionEvent {
+  action: 'description';
+  sourceId: string;
+  payload: DescriptionPayload;
+}
+interface CandidateEvent {
+  action: 'candidate';
+  sourceId: string;
+  payload: CandidatePayload;
+}
+interface DisconnectEvent {
+  action: 'disconnect';
+  sourceId: string;
+  payload: {};
+}
+type SignalEvent = DescriptionEvent | CandidateEvent | DisconnectEvent;
+type SignalEventCallback = (event: SignalEvent) => void;
+interface Signal {
+  addEventListener(listener: SignalEventCallback, peerId?: string): void;
+  removeEventListener(listener: SignalEventCallback, peerId?: string): void;
+  join: (joinId: string) => Promise<JoinResponse>;
+  candidate: (payload: CandidatePayload) => void;
+  description: (payload: DescriptionPayload) => void;
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const send = (ws: WebSocket, action: string, payload: any): void =>
+  ws.send(JSON.stringify({action, payload}));
+
 function createJoin(ws: WebSocket) {
-  return async (
-    roomId: string,
-  ): Promise<{peerIds: Array<string>; requestId: string; selfId: string}> => {
+  return async (roomId: string): Promise<JoinResponse> => {
     return new Promise((resolve) => {
       const requestId = uuid();
-      const handler = (event): void => {
+      const handler = (event: MessageEvent): void => {
         try {
-          const response = JSON.parse(event.data);
-          if (
-            response.action === 'join' &&
-            response.payload.requestId === requestId
-          ) {
+          const {action, payload} = JSON.parse(event.data);
+          if (action === 'join' && payload.requestId === requestId) {
             ws.removeEventListener('message', handler);
-            resolve(response.payload);
+            resolve(payload);
           }
         } catch (err) {}
       };
       ws.addEventListener('message', handler);
-      ws.send(JSON.stringify({action: 'join', payload: {requestId, roomId}}));
+      send(ws, 'join', {requestId, roomId});
     });
   };
 }
 
-const sendResponse = (ws: WebSocket, action: string, payload: any): void =>
-  ws.send(JSON.stringify({action, payload}));
+const createSignalEvent = (event: MessageEvent): SignalEvent | null => {
+  try {
+    const {action, sourceId, payload} = JSON.parse(event.data);
+    if (action === 'description') {
+      return {
+        action,
+        sourceId,
+        payload: {
+          description: new RTCSessionDescription(payload.description),
+        },
+      };
+    } else if (action === 'candidate') {
+      return {
+        action,
+        sourceId,
+        payload: {
+          candidate: new RTCIceCandidate(payload.candidate),
+        },
+      };
+    } else if (action === 'disconnect') {
+      return {
+        action,
+        sourceId,
+        payload: {},
+      };
+    } else {
+      return null;
+    }
+  } catch (err) {
+    return null;
+  }
+};
 
-const createApi = (ws: WebSocket) => ({
-  join: createJoin(ws),
-  offers: (payload: {
-    offers: {[peerId: string]: Offer};
-    roomId: string;
-  }): void => sendResponse(ws, 'offers', payload),
-});
+const createSignal = (ws: WebSocket): Signal => {
+  const globalListeners: Set<SignalEventCallback> = new Set();
+  const peerIdListeners: {[peerId: string]: Set<SignalEventCallback>} = {};
 
-function collectIceCandidates(
-  connection: RTCPeerConnection,
-): Promise<Array<RTCIceCandidate>> {
-  const candidates = [];
-  connection.onicecandidate = ({candidate}) => {
-    if (!candidate) return;
-    candidates.push(candidate.toJSON());
+  ws.addEventListener('message', (event: MessageEvent): void => {
+    const signalEvent = createSignalEvent(event);
+    if (!signalEvent) return;
+
+    globalListeners.forEach((listener) => listener(signalEvent));
+
+    const {sourceId} = signalEvent;
+    peerIdListeners[sourceId] = peerIdListeners[sourceId] || new Set();
+    peerIdListeners[sourceId].forEach((listener) => listener(signalEvent));
+  });
+
+  return {
+    addEventListener(listener: SignalEventCallback, peerId?: string): void {
+      if (peerId) {
+        peerIdListeners[peerId] = peerIdListeners[peerId] || new Set();
+        peerIdListeners[peerId].add(listener);
+      } else {
+        globalListeners.add(listener);
+      }
+    },
+    removeEventListener(listener: SignalEventCallback, peerId?: string): void {
+      if (peerId) {
+        peerIdListeners[peerId] = peerIdListeners[peerId] || new Set();
+        peerIdListeners[peerId].delete(listener);
+      } else {
+        globalListeners.delete(listener);
+      }
+    },
+    join: createJoin(ws),
+    candidate: (payload: CandidatePayload): void =>
+      send(ws, 'candidate', payload),
+    description: (payload: DescriptionPayload): void =>
+      send(ws, 'description', payload),
   };
-  return new Promise((resolve) => {
-    connection.onicegatheringstatechange = (): void => {
-      if (connection.iceGatheringState === 'complete') {
-        resolve(candidates);
-      }
-    };
-  });
-}
-
-function createPeerConnection(): RTCPeerConnection {
-  return new RTCPeerConnection({
-    iceServers: [{urls: 'stun:stun.l.google.com:19302'}],
-  });
-}
-
-async function createInitiatorChannel(
-  connection: RTCPeerConnection,
-): Promise<RTCDataChannel> {
-  return new Promise((resolve) => {
-    const c = connection.createDataChannel('comlink', null);
-    c.onopen = ({target}): void => {
-      if ((target as any).readyState === 'open') {
-        resolve(c);
-      }
-    };
-  });
-}
+};
 
 interface Peer {
-  connection: RTCPeerConnection;
-  channel: Promise<RTCDataChannel>;
+  pc: RTCPeerConnection;
+  dc: RTCDataChannel;
 }
-interface Initiator {
-  offer: Offer;
-  peer: Peer;
-}
-async function createInitiator(): Promise<Initiator> {
-  const connection = createPeerConnection();
-  const channel = createInitiatorChannel(connection);
-  const localDescription = new RTCSessionDescription(
-    await connection.createOffer(),
-  );
-  const candidatesPromise = collectIceCandidates(connection);
-  connection.setLocalDescription(localDescription);
-  const candidates = await candidatesPromise;
-  const offer = {
-    description: localDescription.toJSON(),
-    candidates,
-  };
-  return {offer, peer: {connection, channel}};
-}
-
-interface Offer {
-  description: RTCSessionDescription;
-  candidates: Array<RTCIceCandidate>;
-}
-async function createInitiators(
-  peerIds: Array<string>,
-): Promise<{
-  offers: {[peerId: string]: Offer};
-  peers: {[peerId: string]: Peer};
-}> {
-  const initiators = await Promise.all(
-    peerIds.map((id) => Promise.all([id, createInitiator()])),
-  );
-  const offers = Object.fromEntries(
-    initiators.map(([id, {offer}]) => [id, offer]),
-  );
-  const peers = Object.fromEntries(
-    initiators.map(([id, {peer}]) => [id, peer]),
-  );
-  return {
-    offers,
-    peers,
-  };
-}
-
-async function createAnswerorChannel(
-  connection: RTCPeerConnection,
-): Promise<RTCDataChannel> {
-  return new Promise((resolve) => {
-    connection.ondatachannel = ({channel}): void => {
-      resolve(channel);
-    };
+function createPeer({
+  signal,
+  destinationId,
+  initialEvent,
+  polite,
+}: {
+  signal: Signal;
+  destinationId: string;
+  initialEvent?: SignalEvent;
+  polite: boolean;
+}): Peer {
+  const pc = new RTCPeerConnection({
+    iceServers: [{urls: 'stun:stun.l.google.com:19302'}],
   });
-}
+  const dc = pc.createDataChannel('both', {negotiated: true, id: 0});
 
-async function handleOffer(ws: WebSocket, request) {
-  const {payload} = request;
-  const {
-    roomId,
-    initiatorId,
-    offer: {description, candidates},
-  } = payload;
-  const connection = createPeerConnection();
-  const channel = createAnswerorChannel(connection);
+  // Perfect negotiation
+  // https://w3c.github.io/webrtc-pc/#perfect-negotiation-example
+  // keep track of some negotiation state to prevent races and errors
+  let makingOffer = false;
+  let ignoreOffer = false;
 
-  // Setup remote info
-  connection.setRemoteDescription(new RTCSessionDescription(description));
-  candidates.forEach((c) => connection.addIceCandidate(new RTCIceCandidate(c)));
-
-  // Setup local info
-  const localDescription = new RTCSessionDescription(
-    await connection.createAnswer(),
-  );
-  const answerCandidatesPromise = collectIceCandidates(connection);
-  connection.setLocalDescription(localDescription);
-  const answerCandidates = await answerCandidatesPromise;
-
-  // Send local info to remote
-  sendResponse(ws, 'answer', {
-    answer: {
-      description: localDescription.toJSON(),
-      candidates: answerCandidates,
-    },
-    initiatorId,
-    roomId,
-  });
-
-  return {
-    initiatorId,
-    peer: {
-      connection,
-      channel,
-    },
+  pc.onicecandidate = ({candidate}): void => {
+    if (!candidate) return;
+    signal.candidate({candidate, destinationId});
   };
-}
 
-function handleAnswer({connection, answer}): void {
-  const {description, candidates} = answer;
-  connection.setRemoteDescription(new RTCSessionDescription(description));
-  candidates.forEach((c) => connection.addIceCandidate(new RTCIceCandidate(c)));
-}
-
-let peerConnections = {};
-
-function createMessageHandler(ws: WebSocket) {
-  return async (event: MessageEvent): Promise<void> => {
+  // let the "negotiationneeded" event trigger offer generation
+  pc.onnegotiationneeded = async (): Promise<void> => {
     try {
-      const request = JSON.parse(event.data);
-      const {action} = request;
-      if (action === 'offer') {
-        const {initiatorId, peer} = await handleOffer(ws, request);
-        peerConnections[initiatorId] = peer;
-      } else if (action === 'answer') {
-        const {answerorId, answer} = request.payload;
-        const peer = peerConnections[answerorId];
-        if (peer) {
-          handleAnswer({
-            connection: peer.connection,
-            answer,
-          });
-        }
-      }
+      makingOffer = true;
+      // Typescript definition doesn't have 0 argument version
+      await (pc as any).setLocalDescription();
+      signal.description({
+        description: pc.localDescription,
+        destinationId,
+      });
     } catch (err) {
-      console.log('Error', err);
+      console.error(err);
+    } finally {
+      makingOffer = false;
     }
   };
+
+  const handleEvent = async (event: SignalEvent): Promise<void> => {
+    if (event.action === 'description') {
+      const {description} = event.payload;
+
+      const offerCollision =
+        description.type == 'offer' &&
+        (makingOffer || pc.signalingState != 'stable');
+
+      ignoreOffer = !polite && offerCollision;
+      if (ignoreOffer) {
+        return;
+      }
+
+      await pc.setRemoteDescription(description); // SRD rolls back as needed
+      if (description.type == 'offer') {
+        // Typescript definition doesn't have 0 argument version
+        await (pc as any).setLocalDescription();
+        signal.description({description: pc.localDescription, destinationId});
+      }
+    } else if (event.action === 'candidate') {
+      const {candidate} = event.payload;
+      try {
+        await pc.addIceCandidate(candidate);
+      } catch (err) {
+        if (!ignoreOffer) throw err; // Suppress ignored offer's candidates
+      }
+    }
+  };
+  if (initialEvent) {
+    handleEvent(initialEvent);
+  }
+
+  signal.addEventListener(handleEvent, destinationId);
+  return {pc, dc};
+}
+
+function createInitialPeers(
+  signal,
+  peerIds: Array<string>,
+): {[peerId: string]: Peer} {
+  return Object.fromEntries(
+    peerIds.map((destinationId) => [
+      destinationId,
+      createPeer({signal, destinationId, polite: true}),
+    ]),
+  );
 }
 
 async function webWorkerTest() {
@@ -230,19 +260,27 @@ async function webWorkerTest() {
 
   const ws = await createWebSocket();
 
-  const api = createApi(ws);
-  const {peerIds} = await api.join(roomId);
+  const signal = createSignal(ws);
+  const {peerIds: initialPeerIds} = await signal.join(roomId);
 
-  const handleMessage = createMessageHandler(ws);
-  ws.addEventListener('message', handleMessage);
+  const peers = createInitialPeers(signal, initialPeerIds);
+  window.peers = peers;
 
-  const {peers, offers} = await createInitiators(peerIds);
-
-  peerConnections = peers;
-
-  if (Object.keys(offers).length > 0) {
-    await api.offers({offers, roomId});
-  }
+  signal.addEventListener((event: SignalEvent) => {
+    const {sourceId} = event;
+    if (event.action === 'disconnect') {
+      // todo: properly disconnect
+      delete peers[sourceId];
+    } else if (!peers[sourceId]) {
+      // Found new peer
+      peers[sourceId] = createPeer({
+        signal,
+        destinationId: sourceId,
+        polite: false,
+        initialEvent: event,
+      });
+    }
+  });
 }
 
 async function init(): Promise<void> {
@@ -250,7 +288,8 @@ async function init(): Promise<void> {
   workerClient.actions.game.initGame({
     peers: [],
   });
-  webWorkerTest();
+  createRoom('123');
+  // webWorkerTest();
   const {clientStore: store} = workerClient;
   const root = document.createElement('div');
   document.body.appendChild(root);

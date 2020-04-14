@@ -40,8 +40,8 @@ export async function disconnectHandler(event) {
   console.log('Disconnect');
   const connectionId = event.requestContext.connectionId;
   const roomId = connectionToRoom[connectionId];
+  delete connectionToRoom[connectionId];
   const room = rooms[roomId];
-  debugger;
   if (room) {
     room.delete(connectionId);
     const peerIds = Array.from(room);
@@ -49,9 +49,8 @@ export async function disconnectHandler(event) {
       peerIds.map((id) =>
         sendMessageToClient(endpoint, id, {
           action: 'disconnect',
-          payload: {
-            connectionId,
-          },
+          sourceId: connectionId,
+          payload: {},
         }),
       ),
     );
@@ -81,38 +80,20 @@ export async function messageHandler(event) {
     connectionToRoom[connectionId] = roomId;
     await sendMessageToClient(endpoint, connectionId, {
       action: 'join',
+      sourceId: connectionId,
       payload: {
         requestId,
         peerIds,
         selfId: connectionId,
       },
     });
-  } else if (action === 'offers') {
-    console.log('Offers', payload);
-    const {roomId, offers} = payload;
-    await Promise.all(
-      Object.entries(offers).map(([id, offer]) =>
-        sendMessageToClient(endpoint, id, {
-          action: 'offer',
-          payload: {
-            roomId,
-            initiatorId: connectionId,
-            offer,
-          },
-        }),
-      ),
-    );
-  } else if (action === 'answer') {
-    console.log('Answer', payload);
-    const {answer, initiatorId, roomId} = payload;
-    sendMessageToClient(endpoint, initiatorId, {
-      action: 'answer',
-      payload: {
-        roomId,
-        answerorId: connectionId,
-        initiatorId,
-        answer,
-      },
+  } else if (action === 'description' || action === 'candidate') {
+    console.log(action, payload);
+    const {destinationId} = payload;
+    sendMessageToClient(endpoint, destinationId, {
+      action,
+      sourceId: connectionId,
+      payload,
     });
   }
 
